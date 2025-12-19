@@ -13,6 +13,8 @@ public interface NetworkRepository extends JpaRepository<Network, Long> {
 
     Optional<Network> findByTypeAndSchoolId(Network.NetworkType type, Long schoolId);
 
+    Optional<Network> findByTypeAndSchoolIdAndGrade(Network.NetworkType type, Long schoolId, String grade);
+
     Optional<Network> findByTypeAndCity(Network.NetworkType type, String city);
 
     Optional<Network> findByTypeAndRegion(Network.NetworkType type, String region);

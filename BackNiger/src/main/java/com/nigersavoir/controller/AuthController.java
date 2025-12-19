@@ -62,6 +62,7 @@ public class AuthController {
             user.setPassword(passwordEncoder.encode(request.getPassword()));
             user.setCity(request.getCity());
             user.setRegion(request.getRegion());
+            user.setGrade(request.getGrade());
             user.setRole(User.Role.USER);
 
             if (request.getSchoolId() != null) {
@@ -107,6 +108,13 @@ public class AuthController {
                     .findByTypeAndSchoolId(Network.NetworkType.SCHOOL, user.getSchool().getId())
                     .orElseGet(() -> createSchoolNetwork(user.getSchool()));
             user.getNetworks().add(schoolNetwork);
+
+            if (user.getGrade() != null && !user.getGrade().isBlank()) {
+                Network gradeNetwork = networkRepository
+                        .findByTypeAndSchoolIdAndGrade(Network.NetworkType.GRADE, user.getSchool().getId(), user.getGrade())
+                        .orElseGet(() -> createGradeNetwork(user.getSchool(), user.getGrade()));
+                user.getNetworks().add(gradeNetwork);
+            }
         }
 
         // Join city network
@@ -151,6 +159,18 @@ public class AuthController {
         network.setName(region);
         network.setDescription("Network for students in " + region);
         network.setRegion(region);
+        return networkRepository.save(network);
+    }
+
+    private Network createGradeNetwork(School school, String grade) {
+        Network network = new Network();
+        network.setType(Network.NetworkType.GRADE);
+        network.setName(school.getName() + " - " + grade);
+        network.setDescription("Network for " + grade + " at " + school.getName());
+        network.setSchool(school);
+        network.setCity(school.getCity());
+        network.setRegion(school.getRegion());
+        network.setGrade(grade);
         return networkRepository.save(network);
     }
 }

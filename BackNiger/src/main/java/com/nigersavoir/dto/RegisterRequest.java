@@ -24,5 +24,8 @@ public class RegisterRequest {
     @NotBlank(message = "Region is required")
     private String region;
 
+    @NotBlank(message = "Grade is required")
+    private String grade;
+
     private Long schoolId;
 }

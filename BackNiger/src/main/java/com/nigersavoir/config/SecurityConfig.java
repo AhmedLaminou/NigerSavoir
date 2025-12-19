@@ -60,7 +60,16 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/auth/**", "/documents/search", "/documents/{id}").permitAll()
+                .requestMatchers(
+                        "/auth/**",
+                        "/documents/search",
+                        "/documents/*",
+                        "/documents/download/*",
+                        "/reactions/documents/summary",
+                        "/reactions/books/summary",
+                        "/books/**",
+                        "/schools/**"
+                ).permitAll()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )

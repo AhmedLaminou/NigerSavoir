@@ -55,8 +55,9 @@ public class DocumentController {
             @RequestParam(required = false) String level,
             @RequestParam(required = false) Document.DocumentType type,
             @RequestParam(required = false) String year,
-            @RequestParam(required = false) Long schoolId) {
-        return ResponseEntity.ok(documentService.searchDocuments(subject, level, type, year, schoolId));
+            @RequestParam(required = false) Long schoolId,
+            @RequestParam(required = false) String region) {
+        return ResponseEntity.ok(documentService.searchDocuments(subject, level, type, year, schoolId, region));
     }
 
     @GetMapping("/{id}")

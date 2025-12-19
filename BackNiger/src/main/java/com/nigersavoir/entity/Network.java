@@ -1,5 +1,7 @@
 package com.nigersavoir.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -13,6 +15,7 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Network {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,10 +39,13 @@ public class Network {
 
     private String region;
 
+    private String grade;
+
     @ManyToMany(mappedBy = "networks")
+    @JsonIgnore
     private Set<User> members = new HashSet<>();
 
     public enum NetworkType {
-        SCHOOL, CITY, REGION
+        SCHOOL, CITY, REGION, GRADE
     }
 }

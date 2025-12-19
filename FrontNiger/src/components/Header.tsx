@@ -1,121 +1,180 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Search, Menu, X, Upload, User } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Menu, X, User } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import ThemeColorSwitcher from './ThemeColorSwitcher';
+import { getAuthUser, isLoggedIn as getIsLoggedIn } from '@/lib/auth';
 
 const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // Mock state
+  const [isLoggedIn, setIsLoggedIn] = useState(getIsLoggedIn());
+  const authUser = getAuthUser();
+  const location = useLocation();
+
+  useEffect(() => {
+    const sync = () => setIsLoggedIn(getIsLoggedIn());
+    window.addEventListener('storage', sync);
+    window.addEventListener('auth_changed', sync as EventListener);
+    return () => {
+      window.removeEventListener('storage', sync);
+      window.removeEventListener('auth_changed', sync as EventListener);
+    };
+  }, []);
+
+  const isActive = (path: string) => location.pathname === path;
+
+  const navLinks = [
+    { to: '/search', label: 'Documents' },
+    { to: '/networking', label: 'Réseau' },
+    { to: '/upload', label: 'Contribuer' },
+    { to: '/about', label: 'À propos' },
+  ];
 
   return (
-    <header className="bg-card border-b border-border sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <header className="bg-background/95 backdrop-blur-sm border-b border-border sticky top-0 z-50">
+      <div className="max-w-6xl mx-auto px-6">
         <div className="flex justify-between items-center h-16">
-          {/* Logo and Brand */}
-          <div className="flex items-center">
-            <Link to="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">NS+</span>
-              </div>
-              <div className="hidden sm:block">
-                <h1 className="text-xl font-bold text-foreground">Niger Savoir+</h1>
-                <p className="text-xs text-muted-foreground">Partage de savoir entre élèves et étudiants</p>
-              </div>
-            </Link>
-          </div>
+          {/* Logo - Simple, institutional */}
+          <Link to="/" className="flex items-center gap-3 group">
+            <div className="w-9 h-9 bg-primary rounded flex items-center justify-center">
+              <span className="text-primary-foreground font-serif font-semibold text-sm">NS</span>
+            </div>
+            <div className="hidden sm:block">
+              <h1 className="text-lg font-serif font-semibold text-foreground tracking-tight">
+                Niger Savoir+
+              </h1>
+            </div>
+          </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
-            <Link to="/search" className="text-foreground hover:text-primary transition-colors">
-              Documents
-            </Link>
-            <Link to="/upload" className="text-foreground hover:text-primary transition-colors">
-              Publier
-            </Link>
-            <Link to="/about" className="text-foreground hover:text-primary transition-colors">
-              À propos
-            </Link>
-            <Link to="/admin" className="text-foreground hover:text-primary transition-colors">
-              Admin
-            </Link>
+          {/* Desktop Navigation - Clean, minimal */}
+          <nav className="hidden md:flex items-center gap-8">
+            {navLinks.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                className={`text-sm font-medium transition-colors duration-200 ${
+                  isActive(link.to)
+                    ? 'text-primary'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
+            {authUser?.role === 'ADMIN' && (
+              <Link
+                to="/admin"
+                className={`text-sm font-medium transition-colors duration-200 ${
+                  isActive('/admin')
+                    ? 'text-primary'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                Administration
+              </Link>
+            )}
           </nav>
 
-          {/* Auth Section */}
-          <div className="hidden md:flex items-center space-x-4">
+          {/* Auth Section - Restrained */}
+          <div className="hidden md:flex items-center gap-3">
             <ThemeColorSwitcher />
             {isLoggedIn ? (
-              <div className="flex items-center space-x-2">
-                <Button variant="outline" size="sm" asChild>
-                  <Link to="/upload">
-                    <Upload className="w-4 h-4 mr-2" />
-                    Publier
-                  </Link>
-                </Button>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link to="/profile">
-                    <User className="w-4 h-4" />
-                  </Link>
-                </Button>
-              </div>
+              <Link
+                to="/profile"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
+                  <User className="w-4 h-4" />
+                </div>
+              </Link>
             ) : (
-              <div className="flex items-center space-x-2">
-                <Button variant="ghost" size="sm" asChild>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" asChild className="text-muted-foreground">
                   <Link to="/login">Connexion</Link>
                 </Button>
                 <Button size="sm" asChild>
-                  <Link to="/register">Créer un compte</Link>
+                  <Link to="/register">S'inscrire</Link>
                 </Button>
               </div>
             )}
           </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center gap-2">
+            <ThemeColorSwitcher />
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="p-2"
             >
               {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </Button>
           </div>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Mobile Navigation - Clean */}
         {isMobileMenuOpen && (
-          <div className="md:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1 border-t border-border">
-              <Link
-                to="/search"
-                className="block px-3 py-2 text-foreground hover:text-primary transition-colors"
-              >
-                Documents
-              </Link>
-              <Link
-                to="/upload"
-                className="block px-3 py-2 text-foreground hover:text-primary transition-colors"
-              >
-                Publier
-              </Link>
-              <Link
-                to="/about"
-                className="block px-3 py-2 text-foreground hover:text-primary transition-colors"
-              >
-                À propos
-              </Link>
+          <div className="md:hidden border-t border-border">
+            <nav className="py-4 space-y-1">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`block px-2 py-2.5 text-sm font-medium rounded transition-colors ${
+                    isActive(link.to)
+                      ? 'text-primary bg-primary/5'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              ))}
+              {authUser?.role === 'ADMIN' && (
+                <Link
+                  to="/admin"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`block px-2 py-2.5 text-sm font-medium rounded transition-colors ${
+                    isActive('/admin')
+                      ? 'text-primary bg-primary/5'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  }`}
+                >
+                  Administration
+                </Link>
+              )}
               
               {!isLoggedIn && (
-                <div className="pt-4 space-y-2">
-                  <Button variant="ghost" size="sm" className="w-full" asChild>
-                    <Link to="/login">Connexion</Link>
+                <div className="pt-4 mt-4 border-t border-border space-y-2">
+                  <Button variant="outline" size="sm" className="w-full" asChild>
+                    <Link to="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                      Connexion
+                    </Link>
                   </Button>
                   <Button size="sm" className="w-full" asChild>
-                    <Link to="/register">Créer un compte</Link>
+                    <Link to="/register" onClick={() => setIsMobileMenuOpen(false)}>
+                      S'inscrire
+                    </Link>
                   </Button>
                 </div>
               )}
-            </div>
+
+              {isLoggedIn && (
+                <div className="pt-4 mt-4 border-t border-border">
+                  <Link
+                    to="/profile"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-2 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
+                      <User className="w-4 h-4" />
+                    </div>
+                    Mon profil
+                  </Link>
+                </div>
+              )}
+            </nav>
           </div>
         )}
       </div>

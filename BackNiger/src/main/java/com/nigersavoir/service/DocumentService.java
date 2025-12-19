@@ -82,8 +82,8 @@ public class DocumentService {
     }
 
     public List<Document> searchDocuments(String subject, String level, Document.DocumentType type, String year,
-            Long schoolId) {
-        return documentRepository.searchDocuments(subject, level, type, year, schoolId);
+            Long schoolId, String region) {
+        return documentRepository.searchDocuments(subject, level, type, year, schoolId, region);
     }
 
     public Document getDocument(Long id) {

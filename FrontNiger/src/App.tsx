@@ -11,6 +11,10 @@ import Admin from "./pages/Admin";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
+import Marketplace from "./pages/Marketplace";
+import MarketplaceCart from "./pages/MarketplaceCart";
+import MarketplaceCheckout from "./pages/MarketplaceCheckout";
+import Networking from "./pages/Networking";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +29,10 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/search" element={<Search />} />
           <Route path="/upload" element={<Upload />} />
+          <Route path="/marketplace" element={<Marketplace />} />
+          <Route path="/marketplace/cart" element={<MarketplaceCart />} />
+          <Route path="/marketplace/checkout" element={<MarketplaceCheckout />} />
+          <Route path="/networking" element={<Networking />} />
           <Route path="/about" element={<About />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/login" element={<Login />} />

@@ -1,25 +1,29 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Upload as UploadIcon, FileText, Check } from 'lucide-react';
+import { Upload as UploadIcon, FileText } from 'lucide-react';
 import Header from '@/components/Header';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery } from '@tanstack/react-query';
+import { api, ApiError, type DocumentType } from '@/lib/api';
+import { getAuthToken } from '@/lib/auth';
+import { useNavigate } from 'react-router-dom';
 
 const Upload = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     title: '',
     subject: '',
     level: '',
-    school: '',
+    schoolId: '',
     region: '',
     year: '',
-    type: '',
+    type: '' as DocumentType | '',
     comment: '',
     termsAccepted: false
   });
@@ -29,9 +33,24 @@ const Upload = () => {
   const subjects = ['Mathématiques', 'SVT', 'Philosophie', 'Histoire-Géographie', 'Physique-Chimie', 'Économie', 'Droit', 'Informatique'];
   const levels = ['3ème', '2nde', '1ère', 'Terminale', 'Licence 1', 'Licence 2', 'Licence 3', 'Master'];
   const regions = ['Niamey', 'Zinder', 'Maradi', 'Dosso', 'Tahoua', 'Agadez', 'Tillabéri', 'Diffa'];
-  const schools = ['Lycée La Fontaine', 'Université Abdou Moumouni', 'Lycée Issa Béri', 'Collège Mariama', 'Université de Niamey', 'Lycée Bosso'];
   const years = ['2024', '2023', '2022', '2021', '2020'];
-  const types = ['Cours', 'Devoir', 'Examen', 'Baccalauréat', 'Concours'];
+  const types: { label: string; value: DocumentType }[] = [
+    { label: 'Cours', value: 'COURS' },
+    { label: 'Devoir', value: 'DEVOIR' },
+    { label: 'Examen', value: 'EXAMEN' },
+    { label: 'Baccalauréat', value: 'BACCALAUREAT' },
+    { label: 'Concours', value: 'CONCOURS' },
+  ];
+
+  const schoolsQuery = useQuery({
+    queryKey: ['schools', formData.region],
+    queryFn: () => api.schools.list({ region: formData.region || undefined }),
+  });
+
+  const schoolIdNumber = useMemo(() => {
+    const n = Number(formData.schoolId);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  }, [formData.schoolId]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -63,6 +82,16 @@ const Upload = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!getAuthToken()) {
+      toast({
+        title: "Connexion requise",
+        description: "Veuillez vous connecter avant de publier un document.",
+        variant: "destructive",
+      });
+      navigate('/login');
+      return;
+    }
     
     if (!file) {
       toast({
@@ -83,21 +112,32 @@ const Upload = () => {
     }
 
     setIsUploading(true);
-    
-    // Simulate upload process
-    setTimeout(() => {
-      setIsUploading(false);
+
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('title', formData.title);
+      form.append('description', formData.comment);
+      form.append('subject', formData.subject);
+      form.append('level', formData.level);
+      form.append('type', formData.type);
+      form.append('year', formData.year);
+      if (schoolIdNumber) {
+        form.append('schoolId', String(schoolIdNumber));
+      }
+
+      await api.documents.upload(form);
+
       toast({
-        title: "Document téléchargé avec succès !",
-        description: "Votre document sera révisé avant d'être publié.",
+        title: "Document publié !",
+        description: "Votre document a été ajouté.",
       });
-      
-      // Reset form
+
       setFormData({
         title: '',
         subject: '',
         level: '',
-        school: '',
+        schoolId: '',
         region: '',
         year: '',
         type: '',
@@ -105,7 +145,21 @@ const Upload = () => {
         termsAccepted: false
       });
       setFile(null);
-    }, 2000);
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? (typeof err.payload === 'object' && err.payload && 'error' in err.payload
+              ? String((err.payload as any).error)
+              : "Impossible de publier le document")
+          : "Impossible de publier le document";
+      toast({
+        title: 'Erreur',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const updateFormData = (field: string, value: string | boolean) => {
@@ -116,192 +170,160 @@ const Upload = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-4">
-            Publier un document
+      <div className="max-w-2xl mx-auto px-6 py-12">
+        {/* Header - Calm, purposeful */}
+        <div className="mb-10">
+          <h1 className="text-2xl md:text-3xl font-serif font-semibold text-foreground mb-3">
+            Contribuer
           </h1>
           <p className="text-muted-foreground">
-            Partagez vos cours, devoirs ou examens pour aider la communauté étudiante
+            Partagez vos documents pour enrichir l'archive collective.
           </p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UploadIcon className="w-5 h-5" />
-              Informations du document
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* File Upload */}
-              <div>
-                <Label htmlFor="file">Fichier *</Label>
-                <div className="mt-2">
-                  <Input
-                    id="file"
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={handleFileChange}
-                    className="file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-                  />
-                  {file && (
-                    <div className="mt-2 flex items-center text-sm text-muted-foreground">
-                      <FileText className="w-4 h-4 mr-2" />
-                      {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Formats acceptés: PDF, JPG, PNG (max 10 MB)
-                  </p>
-                </div>
-              </div>
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* File Upload */}
+          <div className="space-y-2">
+            <Label htmlFor="file" className="text-sm font-medium">Fichier</Label>
+            <Input
+              id="file"
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={handleFileChange}
+              className="file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+            />
+            {file && (
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              PDF, JPG, PNG (max 10 MB)
+            </p>
+          </div>
 
-              {/* Title */}
-              <div>
-                <Label htmlFor="title">Titre du document *</Label>
-                <Input
+          {/* Title */}
+          <div className="space-y-2">
+            <Label htmlFor="title" className="text-sm font-medium">Titre</Label>
+            <Input
                   id="title"
                   value={formData.title}
                   onChange={(e) => updateFormData('title', e.target.value)}
-                  placeholder="Ex: Sujet de Mathématiques - Baccalauréat 2023"
-                  required
-                />
-              </div>
+              placeholder="Ex: Sujet de Mathématiques - Baccalauréat 2023"
+              className="h-11"
+              required
+            />
+          </div>
 
-              {/* Row 1: Subject, Level, Type */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="subject">Matière *</Label>
-                  <Select value={formData.subject} onValueChange={(value) => updateFormData('subject', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner une matière" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {subjects.map(subject => (
-                        <SelectItem key={subject} value={subject}>{subject}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+          {/* Row 1: Subject, Level, Type */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Matière</Label>
+              <Select value={formData.subject} onValueChange={(value) => updateFormData('subject', value)}>
+                <SelectTrigger className="h-11"><SelectValue placeholder="Matière" /></SelectTrigger>
+                <SelectContent>
+                  {subjects.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Niveau</Label>
+              <Select value={formData.level} onValueChange={(value) => updateFormData('level', value)}>
+                <SelectTrigger className="h-11"><SelectValue placeholder="Niveau" /></SelectTrigger>
+                <SelectContent>
+                  {levels.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Type</Label>
+              <Select value={formData.type} onValueChange={(value) => updateFormData('type', value)}>
+                <SelectTrigger className="h-11"><SelectValue placeholder="Type" /></SelectTrigger>
+                <SelectContent>
+                  {types.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
-                <div>
-                  <Label htmlFor="level">Niveau *</Label>
-                  <Select value={formData.level} onValueChange={(value) => updateFormData('level', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner un niveau" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {levels.map(level => (
-                        <SelectItem key={level} value={level}>{level}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+          {/* Row 2: Region, School, Year */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Région</Label>
+              <Select value={formData.region} onValueChange={(value) => updateFormData('region', value)}>
+                <SelectTrigger className="h-11"><SelectValue placeholder="Région" /></SelectTrigger>
+                <SelectContent>
+                  {regions.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">École</Label>
+              <Select value={formData.schoolId} onValueChange={(value) => updateFormData('schoolId', value)}>
+                <SelectTrigger className="h-11"><SelectValue placeholder="École" /></SelectTrigger>
+                <SelectContent>
+                  {schoolsQuery.isLoading && <SelectItem value="loading" disabled>Chargement...</SelectItem>}
+                  {!schoolsQuery.isLoading && (schoolsQuery.data?.length || 0) === 0 && <SelectItem value="none" disabled>Aucune</SelectItem>}
+                  {(schoolsQuery.data || []).map((school) => (
+                    <SelectItem key={school.id} value={String(school.id)}>{school.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Année</Label>
+              <Select value={formData.year} onValueChange={(value) => updateFormData('year', value)}>
+                <SelectTrigger className="h-11"><SelectValue placeholder="Année" /></SelectTrigger>
+                <SelectContent>
+                  {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
-                <div>
-                  <Label htmlFor="type">Type de document *</Label>
-                  <Select value={formData.type} onValueChange={(value) => updateFormData('type', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner un type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {types.map(type => (
-                        <SelectItem key={type} value={type}>{type}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+          {/* Comment */}
+          <div className="space-y-2">
+            <Label htmlFor="comment" className="text-sm font-medium">Notes (optionnel)</Label>
+            <Textarea
+              id="comment"
+              value={formData.comment}
+              onChange={(e) => updateFormData('comment', e.target.value)}
+              placeholder="Informations supplémentaires..."
+              rows={3}
+            />
+          </div>
 
-              {/* Row 2: School, Region, Year */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="school">École *</Label>
-                  <Select value={formData.school} onValueChange={(value) => updateFormData('school', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner une école" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {schools.map(school => (
-                        <SelectItem key={school} value={school}>{school}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+          {/* Terms */}
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id="terms"
+              checked={formData.termsAccepted}
+              onCheckedChange={(checked) => updateFormData('termsAccepted', checked as boolean)}
+              className="mt-0.5"
+            />
+            <Label htmlFor="terms" className="text-sm text-muted-foreground leading-relaxed">
+              Je confirme que ce contenu respecte les droits d'auteur
+            </Label>
+          </div>
 
-                <div>
-                  <Label htmlFor="region">Région *</Label>
-                  <Select value={formData.region} onValueChange={(value) => updateFormData('region', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner une région" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {regions.map(region => (
-                        <SelectItem key={region} value={region}>{region}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="year">Année *</Label>
-                  <Select value={formData.year} onValueChange={(value) => updateFormData('year', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionner une année" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {years.map(year => (
-                        <SelectItem key={year} value={year}>{year}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Comment */}
-              <div>
-                <Label htmlFor="comment">Commentaire (optionnel)</Label>
-                <Textarea
-                  id="comment"
-                  value={formData.comment}
-                  onChange={(e) => updateFormData('comment', e.target.value)}
-                  placeholder="Ajoutez des informations supplémentaires sur ce document..."
-                  rows={3}
-                />
-              </div>
-
-              {/* Terms */}
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="terms"
-                  checked={formData.termsAccepted}
-                  onCheckedChange={(checked) => updateFormData('termsAccepted', checked as boolean)}
-                />
-                <Label htmlFor="terms" className="text-sm">
-                  Je confirme que je télécharge du contenu éducatif qui respecte les droits d'auteur *
-                </Label>
-              </div>
-
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isUploading || !formData.termsAccepted}
-              >
-                {isUploading ? (
-                  "Téléchargement en cours..."
-                ) : (
-                  <>
-                    <UploadIcon className="w-4 h-4 mr-2" />
-                    Publier le document
-                  </>
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+          {/* Submit Button */}
+          <Button
+            type="submit"
+            className="w-full h-11"
+            disabled={isUploading || !formData.termsAccepted}
+          >
+            {isUploading ? (
+              "Publication en cours..."
+            ) : (
+              <>
+                <UploadIcon className="w-4 h-4 mr-2" />
+                Publier
+              </>
+            )}
+          </Button>
+        </form>
       </div>
     </div>
   );
